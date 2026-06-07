@@ -28,7 +28,7 @@ jobs:
       run: |
         docker push ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
 
-    - name: Push commit tag
+    - name: Push commit SHA tag
       run: |
         docker push ${{ secrets.DOCKER_USERNAME }}/devops-static-site:${{ github.sha }}
 
@@ -46,9 +46,11 @@ jobs:
       run: |
         ssh -o StrictHostKeyChecking=no \
         -i ~/.ssh/ec2_key.pem \
-        ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << EOF
 
-        docker pull ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
+        echo "Pulling image: ${{ github.sha }}"
+
+        docker pull ${{ secrets.DOCKER_USERNAME }}/devops-static-site:${{ github.sha }}
 
         docker stop devops-static-site || true
 
@@ -58,8 +60,14 @@ jobs:
           --restart unless-stopped \
           --name devops-static-site \
           -p 80:80 \
-          ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
+          ${{ secrets.DOCKER_USERNAME }}/devops-static-site:${{ github.sha }}
 
         docker image prune -f
+
+        echo "Running Containers:"
+        docker ps
+
+        echo "Deployed Image:"
+        docker inspect devops-static-site --format='{{.Config.Image}}'
 
         EOF
