@@ -1,11 +1,11 @@
-name: Build and Push Docker Image
+name: Build, Push and Deploy Docker Image
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,11 +20,17 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest .
+        docker build \
+          -t ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest \
+          -t ${{ secrets.DOCKER_USERNAME }}/devops-static-site:${{ github.sha }} .
 
-    - name: Push Docker image
+    - name: Push latest tag
       run: |
         docker push ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
+
+    - name: Push commit tag
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/devops-static-site:${{ github.sha }}
 
     - name: Setup SSH Key
       run: |
@@ -36,9 +42,24 @@ jobs:
       run: |
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Test SSH Connection
+    - name: Deploy to EC2
       run: |
         ssh -o StrictHostKeyChecking=no \
         -i ~/.ssh/ec2_key.pem \
-        ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-        "hostname && whoami"
+        ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+        docker pull ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
+
+        docker stop devops-static-site || true
+
+        docker rm devops-static-site || true
+
+        docker run -d \
+          --restart unless-stopped \
+          --name devops-static-site \
+          -p 80:80 \
+          ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
+
+        docker image prune -f
+
+        EOF
