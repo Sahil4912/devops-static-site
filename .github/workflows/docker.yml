@@ -10,7 +10,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Login to Docker Hub
       uses: docker/login-action@v3
@@ -19,33 +19,26 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Build Docker image
-      run: docker build -t ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest .
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest .
 
     - name: Push Docker image
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/devops-static-site:latest
 
-
-    - name: Setup SSH
+    - name: Setup SSH Key
       run: |
         mkdir -p ~/.ssh
-        printf "%s" "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
+        chmod 600 ~/.ssh/ec2_key.pem
 
-        echo "LINES:"
-        wc -l ~/.ssh/id_ed25519
-
-        echo "FIRST LINE:"
-        head -n 1 ~/.ssh/id_ed25519
-
-        echo "LAST LINE:"
-        tail -n 1 ~/.ssh/id_ed25519
-
-    - name: Add Host
+    - name: Add EC2 Host
       run: |
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Test Connection
+    - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/id_ed25519 \
+        ssh -o StrictHostKeyChecking=no \
+        -i ~/.ssh/ec2_key.pem \
         ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
         "hostname && whoami"
