@@ -59,7 +59,7 @@ Static Website
 
 ### Website
 
-🌐 http://35.154.76.128
+🌐 Live demo available on request (EC2 instance started before interview)
 
 ---
 
