@@ -59,7 +59,7 @@ Static Website
 
 ### Website
 
-🌐 Live demo available on request (EC2 instance started before interview)
+🌐 Live demo available on request
 
 ---
 
